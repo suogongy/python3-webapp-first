@@ -5,7 +5,7 @@ from datetime import datetime
 from aiohttp import web
 
 def index(request):
-	return web.Response(body=b'<h1>Aha,Python3!So Intresting!</>', content_type='text/html', charset='UTF-8')
+	return web.Response(body=b'<h1>Aha,Python3!</>', content_type='text/html', charset='UTF-8')
 
 def init(loop):
 	app = web.Application(loop=loop)
