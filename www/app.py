@@ -1,67 +1,51 @@
-import logging;logging.basicConfig(level=logging.INFO)
+#! /usr/bin/env python3
 
-import asyncio,os,json,time
+'''
+async web app
+'''
+
+import logging, logging.basicConfig(level= logging.INFO)
+
+import asyncio, os, json, time
+
 from datetime import datetime
+
 from aiohttp import web
 
-def index(request):
-	return web.Response(body=b'<h1>Aha,Python3!</>', content_type='text/html', charset='UTF-8')
+from jinja2 import Environment, FileSystemLoader
 
-def init(loop):
-	app = web.Application(loop=loop)
-	app.router.add_route('GET','/',index)
-	srv = yield from loop.create_server(app.make_handler(),'127.0.0.1',9000)
-	logging.info("server started at http://127.0.0.1:9000...")
-	return srv
+import orm
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(init(loop))
-loop.run_forever()
+from coroweb import add_routes, add_static
 
+def init_jinja2(app, **kw):
+	logging.info('init jinja2')
 
-@asyncio.coroutine
-def create_pool(loop, **kw):
-	logging.info("create database connection pool")
-	global __pool
-	__pool = yield from aiomysql.create_pool(
-		host = kw.get('host','localhost')
-		port = kw.get('port',3306)
-		user = kw.get('user')
-		password = kw.get('password')
-		db = kw.get('db')
-		charset = kw.get('charset','utf8')
-		autocommit = kw.get('autocommit',True)
-		maxsize = kw.get('maxsize',10)
-		minsize = kw.get('minsize',1)
-		loop = loop
+	options = dict(
+		autoscapse = kw.get('autoscapse', True)
+		block_start_string = kw.get('block_start_string','{%')
+		block_end_string = kw.get('block_end_string', '%}')
+		variable_start_string = kw.get('variable_start_string','{{')
+		variable_end_string = kw.get('variable_end_string','}}')
+		auto_reload = kw.get('auto_reload', True)
 	)
 
-@asyncio.coroutine
-def select(sql,args,size = None):
-	log(sql,args)
-	global __pool
-	with (yield from __pool) as conn:
-		cur = yield from conn.cursor(aiomysql.DirectCursor)
-		yield from cur.execute(sql.replace('?','%s'), args or ())
-		if size:
-			rs = yield from cur.fetchmany(size)
-		else
-			rs = yield from cur.fetchall()
-		yield from cur.close()
+	path = kw.get('path', None)
+	if path is None:
+		path = os.path.join(os.path.dirname(os.path.abspath(__file__)),'templates')
 
-		logging.info("rows returned: %s" % len(rs))
-		return rs
+	logging.info('set jinja2 templats path : %s' % path)
 
-@asyncio.coroutine
-def execute(sql,args):
-	log(sql)
-	with (yield from __pool) as conn:
-		try:
-			cur = yield from conn.cursor()
-			yield from cur.execute(sql.replace('?','%s'),ars)
-			affected = cur.rowcount
-			yield from cur.close()
-		except BaseException as e:
-			raise
-		return affected
-		
+	env = Environment(loader = FileSystemLoader(path), **options)
+	filters = kw.get('filters',None)
+	if filters is not None:
+		for name,f in filters.items():
+			env.filters[name] = f
+	app['__templating__'] = env
+
+async def logger_factory(app, handler):
+	async def logger(request):
+		logging.info('request: %s, %s' % (request.method, request.path))
+		return (await handler(request))
+	return logger
+

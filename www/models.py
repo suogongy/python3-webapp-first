@@ -27,3 +27,14 @@ def Blog(Model):
 	summary = StringField
 	content = TextField()
 	created_at = FloatField(default = time.time)
+
+def Comment(Model):
+	__table__ = 'comments'
+
+	id = StringField(primary_key = True, default = next_id, ddl = 'varcahr(50)')
+	blog_id = StringField(ddl = 'varcahr(50)')
+	user_id = StringField(ddl = 'varcahr(50)')
+	user_name = StringField()
+	user_image = StringField()
+	content = TextField()
+	created_at = FloatField(default = time.time)
