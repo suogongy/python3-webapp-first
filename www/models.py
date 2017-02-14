@@ -21,10 +21,10 @@ class Blog(Model):
 
 	id = StringField(primary_key = True, default = next_id, ddl = 'varcahr(50)')
 	user_id = StringField(ddl = 'varcahr(50)')
-	user_name = StringField()
-	user_image = StringField()
-	name = StringField
-	summary = StringField
+	user_name = StringField(ddl = 'varcahr(50)')
+	user_image = StringField(ddl = 'varcahr(500)')
+	name = StringField(ddl = 'varcahr(50)')
+	summary = StringField(ddl = 'varcahr(50)')
 	content = TextField()
 	created_at = FloatField(default = time.time)
 
@@ -34,7 +34,7 @@ class Comment(Model):
 	id = StringField(primary_key = True, default = next_id, ddl = 'varcahr(50)')
 	blog_id = StringField(ddl = 'varcahr(50)')
 	user_id = StringField(ddl = 'varcahr(50)')
-	user_name = StringField()
-	user_image = StringField()
+	user_name = StringField(ddl = 'varcahr(50)')
+	user_image = StringField(ddl = 'varcahr(500)')
 	content = TextField()
 	created_at = FloatField(default = time.time)
