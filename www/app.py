@@ -22,7 +22,7 @@ def init_jinja2(app, **kw):
 	logging.info('init jinja2')
 
 	options = dict(
-		autoscapse = kw.get('autoscapse', True),
+		autoescape = kw.get('autoescape', True),
 		block_start_string = kw.get('block_start_string','{%'),
 		block_end_string = kw.get('block_end_string', '%}'),
 		variable_start_string = kw.get('variable_start_string','{{'),
@@ -131,5 +131,5 @@ async def init(loop):
 	return srv
 
 loop = asyncio.get_event_loop()
-loop.run_untile_complete(init(loop))
+loop.run_until_complete(init(loop))
 loop.run_forever()

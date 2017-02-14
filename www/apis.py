@@ -21,13 +21,13 @@ class APIValueError(APIError):
 	indicate the input value has error or invalid
 	'''
 	def __init__(self, field, message=''):
-		super(APIValueError, self).__init__('value:invalid'，field, message)
+		super(APIValueError, self).__init__('value:invalid',field,message)
 	
 
 class APIResourceNotFoundError(APIError):
 	
 	def __init__(self, field, message=''):
-		super(APIResourceNotFoundError, self).__init__('value：not found‘,field,message)
+		super(APIResourceNotFoundError, self).__init__('value：not found', field, message)
 
 class APIPermissionError(APIError):
 
