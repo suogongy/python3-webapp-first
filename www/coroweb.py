@@ -86,7 +86,8 @@ class RequestHandler(object):
 		self._named_kw_args = get_named_kw_args(fn)
 		self._required_kw_args = get_required_kw_args(fn)
 
-	async def __call__(self,request):
+	@asyncio.coroutine
+	def __call__(self,request):
 		kw = None
 		if self._has_var_kw_arg or self._has_named_kw_args or self._required_kw_args:
 			if request.method == 'POST':
@@ -96,12 +97,12 @@ class RequestHandler(object):
 				ct = request.content_type.lower()
 				
 				if ct.startwith('application/json'):
-					params = await request.json()
+					params = yield from request.json()
 					if not isinstance(params, dict):
 						return web.HttpBadRequest('json body must be object')
 					kw = params
 				elif ct.startwith('application/x-www-form-urlencoded') or ct.startwith('application/form-data'):
-					params = await request.post()
+					params = yield from request.post()
 					kw = dict(** params)
 				else:
 					return web.HttpBadRequest('unsupport content type')
@@ -140,7 +141,7 @@ class RequestHandler(object):
 		logging.info('call with args: %s' % str(kw))
 
 		try:
-			r = await self._func(**kw)
+			r = yield from self._func(**kw)
 			return r
 		except APIError as e:
 			return dict(error = e.error, data = e.data, message = d.message)
