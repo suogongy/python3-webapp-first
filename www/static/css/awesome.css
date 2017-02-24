@@ -5,9 +5,9 @@ a:hover, a:active {
     text-decoration: none;
 }
 
-#vm {
+/*#vm {
     display: none;
-}
+}*/
 #loading {
     margin-bottom: 15px;
 }

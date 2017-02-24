@@ -77,7 +77,7 @@ def has_request_arg(fn):
 
 class RequestHandler(object):
 	
-	def __init__(self, app, fn):
+	def __init__(self,app,fn):
 		self._app = app
 		self._func = fn
 		self._has_request_arg = has_request_arg(fn)
@@ -92,20 +92,20 @@ class RequestHandler(object):
 		if self._has_var_kw_arg or self._has_named_kw_args or self._required_kw_args:
 			if request.method == 'POST':
 				if not request.content_type:
-					return web.HttpBadRequest('missing content-type')
+					return web.HTTPBadRequest('missing content-type')
 
 				ct = request.content_type.lower()
 				
-				if ct.startwith('application/json'):
+				if ct.startswith('application/json'):
 					params = yield from request.json()
 					if not isinstance(params, dict):
-						return web.HttpBadRequest('json body must be object')
+						return web.HTTPBadRequest('json body must be object')
 					kw = params
 				elif ct.startwith('application/x-www-form-urlencoded') or ct.startwith('application/form-data'):
 					params = yield from request.post()
 					kw = dict(** params)
 				else:
-					return web.HttpBadRequest('unsupport content type')
+					return web.HTTPBadRequest('unsupport content type')
 
 			if request.method == 'GET':
 				qs = request.query_string
@@ -136,7 +136,8 @@ class RequestHandler(object):
 		if self._required_kw_args:
 			for name in self._required_kw_args:
 				if not name in kw:
-					return web.HttpBadRequest('missing argument: %s' % name)
+					logging.info("not name in kw")
+					return web.HTTPBadRequest('Missing argument: %s' % name)
 
 		logging.info('call with args: %s' % str(kw))
 
@@ -156,9 +157,10 @@ def add_route(app,fn):
 	path = getattr(fn,'__route__',None)
 	if path is None or method is None:
 		raise ValueError('@get or @post not defined in %s.' % str(fn))
+	if not asyncio.iscoroutinefunction(fn) and not  inspect.isgeneratorfunction(fn):
+		fn = asyncio.coroutine(fn)
 	logging.info('add route %s %s => %s(%s)' % (method,path,fn.__name__,' '.join(inspect.signature(fn).parameters.keys())))
 	app.router.add_route(method,path,RequestHandler(app,fn))
-	logging.info('route added!!')
 
 def add_routes(app, module_name):
 	n = module_name.rfind('.')
