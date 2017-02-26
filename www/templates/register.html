@@ -38,7 +38,7 @@ $(function(){
 				}
 
 				var email = this.email.trim().toLowerCase();
-				$form.postJSON('api/user',{
+				$form.postJSON('/api/user',{
 						name:this.name.trim(),
 						email:email,
 						passwd:CryptoJS.SHA1(email + ':' + this.password1).toString()

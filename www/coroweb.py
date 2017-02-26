@@ -48,7 +48,7 @@ def get_named_kw_args(fn):
 		if param.kind == inspect.Parameter.KEYWORD_ONLY:
 			args.append(name)
 
-		return tuple(args)
+	return tuple(args)
 
 def has_named_kw_args(fn):
 	params = inspect.signature(fn).parameters
@@ -101,11 +101,11 @@ class RequestHandler(object):
 					if not isinstance(params, dict):
 						return web.HTTPBadRequest('json body must be object')
 					kw = params
-				elif ct.startwith('application/x-www-form-urlencoded') or ct.startwith('application/form-data'):
+				elif ct.startswith('application/x-www-form-urlencoded') or ct.startswith('application/form-data'):
 					params = yield from request.post()
 					kw = dict(** params)
 				else:
-					return web.HTTPBadRequest('unsupport content type')
+					return web.HTTPBadRequest('unsupport content type:%s' % request.content_type)
 
 			if request.method == 'GET':
 				qs = request.query_string
@@ -136,16 +136,13 @@ class RequestHandler(object):
 		if self._required_kw_args:
 			for name in self._required_kw_args:
 				if not name in kw:
-					logging.info("not name in kw")
 					return web.HTTPBadRequest('Missing argument: %s' % name)
-
-		logging.info('call with args: %s' % str(kw))
 
 		try:
 			r = yield from self._func(**kw)
 			return r
 		except APIError as e:
-			return dict(error = e.error, data = e.data, message = d.message)
+			return dict(error = e.error, data = e.data, message = e.message)
 
 def add_static(app):
 	path = os.path.join(os.path.dirname(os.path.abspath(__file__)),'static')

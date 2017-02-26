@@ -38,6 +38,7 @@ def select(sql,args,size=None):
 		else:
 			rs = yield from cur.fetchall()
 
+		yield from cur.close()
 		logging.info('rows returned: %s' % len(rs))
 		return rs
 
@@ -48,7 +49,7 @@ def execute(sql, args, autocommit=True):
 		if not autocommit:
 			yield from conn.begin()
 		try:
-			cur = yield from conn.cursor
+			cur = yield from conn.cursor()
 			yield from cur.execute(sql.replace('?','%s'),args)
 			affected = cur.rowcount
 			yield from cur.close()
@@ -82,7 +83,7 @@ class StringField(Field):
 		super().__init__(name,ddl,primary_key,default)
 
 class BooleanField(Field):
-	def __init__(self, name=None, primary_key=False,default = None, ddl='varcahr(100)'):
+	def __init__(self, name=None,default = False):
 		super().__init__(name,'boolean',False,default)
 
 class IntegerField(Field):
@@ -156,7 +157,7 @@ class Model(dict,metaclass=ModelMetaClass):
 		return getattr(self,key,None)
 
 	def getValueOrDefault(self, key):
-		value = getattr(slef,key,None)
+		value = getattr(self,key,None)
 		if value is None:
 			field = self.__mappings__[key]
 			if field.default is not None:

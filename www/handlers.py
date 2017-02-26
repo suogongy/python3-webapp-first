@@ -22,7 +22,7 @@ def user2cookie(user,max_age):
 	#build cookiestring by: id-expires-sha1
 	expires = str(int(time.time() + max_age))
 	s = '%s-%s-%s-%s' % (user.id, user.passwd, expires, _COOKIE_KEY)
-	L = [user.id, expires, hashlib.sha1(s.encode('utf-8')).hexdigest]
+	L = [user.id, expires, hashlib.sha1(s.encode('utf-8')).hexdigest()]
 	return '-'.join(L)
 
 @asyncio.coroutine
@@ -78,6 +78,14 @@ def signin():
 		'__template__':'signin.html'
 	}
 
+@get('/signout')
+def signout(request):
+	referer = request.headers.get('Referer')
+	r = web.HTTPFound(referer or '/')
+	r.set_cookie(COOKIE_NAME,'-deleted-',max_age = 0, httponly = True)
+	logging.info('user sign out.')
+	return r
+
 @get('/api/user')
 def api_get_users():
 	users = yield from User.findAll(orderBy='created_at desc');
@@ -88,6 +96,9 @@ def api_get_users():
 
 @post('/api/user')
 def api_register_user(*,email,name,passwd):
+
+	logging.info("payams" + email + name + passwd)
+
 	if not name or not name.strip():
 		raise ApiValueError('name')
 	if not email or not email.strip():
@@ -98,7 +109,7 @@ def api_register_user(*,email,name,passwd):
 	users = yield from User.findAll('email = ?',[email])
 
 	if len(users) > 0 :
-		raise ApiError('register failed!','email','email is already in use!')
+		raise APIError('register failed!','email','email is already in use!')
 
 	uid = next_id()
 	sha1_passwd = '%s:%s' % (uid, passwd)
@@ -110,6 +121,37 @@ def api_register_user(*,email,name,passwd):
 	r.set_cookie(COOKIE_NAME,user2cookie(user,86400),max_age=86400,httponly=True)
 	user.passwd = '******'
 	r.content_type='application/json'
+	r.body = json.dumps(user,ensure_ascii=False).encode('utf-8')
+	return r
+
+@post('/api/authenticate')
+def authenticate(*, email, passwd):
+
+	logging.info("/api/authenticate called")
+	if not email:
+		raise APIValueError('email','invalid email')
+	if not passwd:
+		raise APIValueError('passwd','invalid passwd')
+
+	users = yield from User.findAll('email=?',[email])
+	if len(users) == 0:
+		raise ApiValueError('email','email not exits')
+	user = users[0]
+
+	# check passwd
+	sha1 = hashlib.sha1()
+	sha1.update(user.id.encode('utf-8'))
+	sha1.update(b':')
+	sha1.update(passwd.encode('utf-8'))
+
+	if user.passwd != sha1.hexdigest():
+		raise ApiValueError('passwd','invalid passwd')
+
+	# set cookie
+	r = web.Response()
+	r.set_cookie(COOKIE_NAME, user2cookie(user,86400),max_age=86400,httponly=True)
+	user.passwd = '******'
+	r.content_type = 'application/json'
 	r.body = json.dumps(user,ensure_ascii=False).encode('utf-8')
 	return r
 
