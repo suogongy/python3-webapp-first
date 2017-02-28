@@ -9,7 +9,7 @@ import markdown2
 from aiohttp import web 
 
 from coroweb import get, post
-from apis import APIValueError,APIError,APIPermissionError,APIResourceNotFoundError
+from apis import Page, APIValueError,APIError,APIPermissionError,APIResourceNotFoundError
 
 from models import User, Comment, Blog, next_id
 from config import configs
@@ -20,6 +20,18 @@ _COOKIE_KEY = configs.session.secret
 def check_admin(request):
 	if request.__user__ is None or not request.__user__.admin:
 		raise APIPermissionError()
+
+def get_page_index(page_str):
+	p = 1
+	try:
+		p = int(page_str)
+	except ValueError as e:
+		pass
+	
+	if p < 1:
+		p = 1
+
+	return p
 
 def user2cookie(user,max_age):
 	
@@ -161,6 +173,13 @@ def manage_create_blog():
 		'action': '/api/blog'
 	}
 
+@get('/manage/blog')
+def manage_blogs(*, page = '1'):
+	return {
+	'__template__':'manage_blogs.html',
+	'page_index':get_page_index(page)
+	}
+
 @get('/blog/{id}')
 def get_blog(*,id):
 	logging.info('param id is :%s' % id)
@@ -182,6 +201,16 @@ def api_get_blog(*,id):
 	logging.info('param id is :%s' % id)
 	blog = yield from Blog.find(id)
 	return blog
+
+@get('/api/blog')
+def api_get_blogs(*,page='1'):
+	page_index = get_page_index(page)
+	num = yield from Blog.findNumber('count(id)')
+	p = Page(num,page_index)
+	if num == 0:
+		return dict(page=p, blogs=())
+	blogs = yield from Blog.findAll(orderBy='created_at desc', limit = (p.offset,p.limit))
+	return dict(page=p,blogs = blogs)
 
 @post('/api/blog')
 def api_create_blog(request, *, name, summary, content):
