@@ -9,13 +9,17 @@ import markdown2
 from aiohttp import web 
 
 from coroweb import get, post
-from apis import APIValueError,APIError,APIResourceNotFoundError
+from apis import APIValueError,APIError,APIPermissionError,APIResourceNotFoundError
 
 from models import User, Comment, Blog, next_id
 from config import configs
 
 COOKIE_NAME = "awesession"
 _COOKIE_KEY = configs.session.secret
+
+def check_admin(request):
+	if request.__user__ is None or not request.__user__.admin:
+		raise APIPermissionError()
 
 def user2cookie(user,max_age):
 	
@@ -27,7 +31,6 @@ def user2cookie(user,max_age):
 
 @asyncio.coroutine
 def cookie2user(cookie_str):
-
 	if not cookie_str:
 		return None 
 
@@ -96,9 +99,6 @@ def api_get_users():
 
 @post('/api/user')
 def api_register_user(*,email,name,passwd):
-
-	logging.info("payams" + email + name + passwd)
-
 	if not name or not name.strip():
 		raise ApiValueError('name')
 	if not email or not email.strip():
@@ -126,8 +126,6 @@ def api_register_user(*,email,name,passwd):
 
 @post('/api/authenticate')
 def authenticate(*, email, passwd):
-
-	logging.info("/api/authenticate called")
 	if not email:
 		raise APIValueError('email','invalid email')
 	if not passwd:
@@ -155,4 +153,48 @@ def authenticate(*, email, passwd):
 	r.body = json.dumps(user,ensure_ascii=False).encode('utf-8')
 	return r
 
+@get('/manage/blog/create')
+def manage_create_blog():
+	return {
+		'__template__':'manage_blog_edit.html',
+		'id': '',
+		'action': '/api/blog'
+	}
 
+@get('/blog/{id}')
+def get_blog(*,id):
+	logging.info('param id is :%s' % id)
+	blog = yield from Blog.find(id)
+	logging.info('found blog :%s' % str(blog))
+	comments = yield from Comment.findAll('blog_id=?',[id],orderBy='created_at desc')
+	for c in comments:
+		c.html_content = text2html(c.content)
+	blog.html_content = markdown2.markdown(blog.content)
+
+	return {
+		'__template__':'blog.html',
+		'blog':blog,
+		'comments': comments
+	}
+
+@get('/api/blog/{id}')
+def api_get_blog(*,id):
+	logging.info('param id is :%s' % id)
+	blog = yield from Blog.find(id)
+	return blog
+
+@post('/api/blog')
+def api_create_blog(request, *, name, summary, content):
+	check_admin(request)
+	if not name or not name.strip():
+		raise APIValueError('name','name can\'t be null')
+	if not summary or not summary.strip():
+		raise APIValueError('summary',r'summary can\'t be null')
+	if not content or not content.strip():
+		raise APIValueError('content', 'conent can\'t be null')
+
+	blog = Blog(user_id=request.__user__.id, user_name=request.__user__.name,user_image=request.__user__.image,
+		name=name.strip(), summary = summary.strip(), content = content.strip())
+	yield from blog.save()
+
+	return blog 
