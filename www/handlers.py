@@ -198,9 +198,31 @@ def get_blog(*,id):
 
 @get('/api/blog/{id}')
 def api_get_blog(*,id):
-	logging.info('param id is :%s' % id)
 	blog = yield from Blog.find(id)
 	return blog
+
+@post('/api/blog/{id}')
+def api_update_blog(request,*,id,name,summary,content):
+	check_admin(request)
+	blog = yield from Blog.find(id)
+	if not name or not name.strip():
+		raise APIValueError('name','name cannot be empty!')
+	if not summary or summary.strip():
+		raise APIValueError('summary','summary cannot be empty')
+	if not content or content.strip():
+		raise APIValueError('content','content cannot be empty')
+	blog.name = name.strip()
+	blog.summary = summary.strip()
+	blog.content = content.strip()
+	yield from blog.update()
+	return blog
+
+@post('/api/blog/{id}/delete')
+def api_delete_blog(request,*,id):
+	check_admin(request)
+	blog = yield from Blog.find(id)
+	yield from blog.remove()
+	return dict(id = id)
 
 @get('/api/blog')
 def api_get_blogs(*,page='1'):
@@ -227,3 +249,36 @@ def api_create_blog(request, *, name, summary, content):
 	yield from blog.save()
 
 	return blog 
+
+post('/api/blog/{id}/comment')
+def api_create_comment(id, request, *, content):
+	user = request.__user__
+	if user is None:
+		raise APIPermissionError('please sign in...')
+	if not content or not content.strip():
+		raise ApiValueError('content cannot be empty')
+	blog = yield from Blog.find(id)
+	if blog is None:
+		raise APIResourceNotFoundError('blog not found')
+	comment = Comment(blog_id = blog.id, user_id = user.id, user_name = user.name, user_image = user.image, content = content.strip())
+	yield from comment.save()
+	return comment
+
+get('/api/comment')
+def api_get_comments(*, page='1'):
+	page_index = get_page_index(page)
+	num = yield from Comment.findNumber('count(id)')
+	p = Page(num,page_index)
+	if num == 0:
+		return dict(page = p, comments = ())
+	comments = yield from Comment.findAll(orderBy='created_at desc', limit=(p.offset,p.limit))
+	return dict(page=p, comments = comments)
+
+post('/api/comment/{id}/delete')
+def api_delete_comment(id, request):
+	check_admin(request)
+	comment = yield from Comment.find(id)
+	if comment is None:
+		raise APIResourceNotFoundError('comment not found')
+	yield from comment.remove()
+	return dict(id = id)
