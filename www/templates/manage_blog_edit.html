@@ -1,59 +1,61 @@
 {% extends '__base__.html' %}
 
-{% block title %}
-编辑日志
-{% endblock %}
+{% block title %}日志{% endblock %}
 
 {% block beforehead %}
-<script type="text/javascript">
-	var ID = '{{id}}',action = '{{action}}'
 
-	function initVM(blog){
-		var vm = new Vue({
-			el: '#vm',
-			data: blog,
-			methods:{
-				submit: function(event){
-					event.preventDefault();
-					var $form = $('#vm').find('form');
-					$form.postJSON(action,this.$data,function(err,r){
-						if (err) {
-							$form.showFormError(err)
-						}else{
-							return location.assign('/api/blog/' + r.id)
-						}
-					});
-				}
-			}
-		});
-		$('#vm').show();
-	}
+<script>
 
-	$(function(){
-		if(ID){
-			getJSON('/api/blog' + ID,
-				function(err,blog){
-					if(err){
-						return fatal(err);
-					}
-					$('#loading').hide();
-					initVM(blog)
-				}
-			);
-		}else{
-			$('#loading').hide();
-			initVM({
-				name: '',
-				summary: '',
-				content: ''
-			});
-		}
-	});
+var ID = '{{ id }}', action = '{{ action }}';
+
+function initVM(blog) {
+    var vm = new Vue({
+        el: '#vm',
+        data: blog,
+        methods: {
+            submit: function (event) {
+                event.preventDefault();
+                var $form = $('#vm').find('form');
+                $form.postJSON(action, this.$data, function (err, r) {
+                    if (err) {
+                        $form.showFormError(err);
+                    }
+                    else {
+                        return location.assign('/manage/blog');
+                    }
+                });
+            }
+        }
+    });
+    $('#vm').show();
+}
+
+$(function() {
+    if (ID) {
+        getJSON('/api/blogs/' + ID, function (err, blog) {
+            if (err) {
+                return fatal(err);
+            }
+            $('#loading').hide();
+            initVM(blog);
+        });
+    }
+    else {
+        $('#loading').hide();
+        initVM({
+            name: '',
+            summary: '',
+            content: ''
+        });
+    }
+});
+
 </script>
+
 {% endblock %}
 
 {% block content %}
-	 <div class="uk-width-1-1 uk-margin-bottom">
+	<div class="uk-width-1-1 uk-margin-bottom">
         <div class="uk-panel uk-panel-box">
             <ul class="uk-breadcrumb">
                 <li><a href="/manage/comment">评论</a></li>

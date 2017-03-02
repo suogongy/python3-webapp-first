@@ -67,17 +67,19 @@ def cookie2user(cookie_str):
 		return None
 
 @get('/')
-def index(request):
-	summary = '总结，summary。第八天。python web实战'
+def index(*, page = '1'):
 	
-	blogs = [
-		Blog(id='1',name='blog1',summary=summary,created_at=time.time()-120),
-		Blog(id='2',name='blog2',summary=summary,created_at=time.time()-3600),
-		Blog(id='3',name='blog3',summary=summary,created_at=time.time()-7200)
-	]
+	page_index = get_page_index(page)
+	num = yield from Blog.findNumber('count(id)')
+	page = Page(num)
+	if num == 0:
+		blogs = []
+	else:
+		blogs = yield from Blog.findAll(orderBy='created_at desc',limit=(page.offset,page.limit))
 
 	return {
 		'__template__':'blogs.html',
+		'page':page,
 		'blogs':blogs
 	}
 
@@ -102,12 +104,18 @@ def signout(request):
 	return r
 
 @get('/api/user')
-def api_get_users():
-	users = yield from User.findAll(orderBy='created_at desc');
+def api_get_users(*, page='1'):
+	page_index = get_page_index(page)
+	num = yield from User.findNumber('count(id)')
+	p = Page(num,page_index)
+	if num == 0:
+		return dict(page= p, users = ())
+
+	users = yield from User.findAll(orderBy='created_at desc', limit=(p.offset,p.limit));
 	for u in users:
 		u.passwd = '******'
 	
-	return dict(users=users)
+	return dict(page = p, users=users)
 
 @post('/api/user')
 def api_register_user(*,email,name,passwd):
@@ -164,21 +172,6 @@ def authenticate(*, email, passwd):
 	r.content_type = 'application/json'
 	r.body = json.dumps(user,ensure_ascii=False).encode('utf-8')
 	return r
-
-@get('/manage/blog/create')
-def manage_create_blog():
-	return {
-		'__template__':'manage_blog_edit.html',
-		'id': '',
-		'action': '/api/blog'
-	}
-
-@get('/manage/blog')
-def manage_blogs(*, page = '1'):
-	return {
-	'__template__':'manage_blogs.html',
-	'page_index':get_page_index(page)
-	}
 
 @get('/blog/{id}')
 def get_blog(*,id):
@@ -250,7 +243,7 @@ def api_create_blog(request, *, name, summary, content):
 
 	return blog 
 
-post('/api/blog/{id}/comment')
+@post('/api/blog/{id}/comment')
 def api_create_comment(id, request, *, content):
 	user = request.__user__
 	if user is None:
@@ -264,7 +257,7 @@ def api_create_comment(id, request, *, content):
 	yield from comment.save()
 	return comment
 
-get('/api/comment')
+@get('/api/comment')
 def api_get_comments(*, page='1'):
 	page_index = get_page_index(page)
 	num = yield from Comment.findNumber('count(id)')
@@ -274,7 +267,7 @@ def api_get_comments(*, page='1'):
 	comments = yield from Comment.findAll(orderBy='created_at desc', limit=(p.offset,p.limit))
 	return dict(page=p, comments = comments)
 
-post('/api/comment/{id}/delete')
+@post('/api/comment/{id}/delete')
 def api_delete_comment(id, request):
 	check_admin(request)
 	comment = yield from Comment.find(id)
@@ -282,3 +275,32 @@ def api_delete_comment(id, request):
 		raise APIResourceNotFoundError('comment not found')
 	yield from comment.remove()
 	return dict(id = id)
+
+@get('/manage/blog/create')
+def manage_create_blog():
+	return {
+		'__template__':'manage_blog_edit.html',
+		'id': '',
+		'action': '/api/blog'
+	}
+
+@get('/manage/blog')
+def manage_blogs(*, page = '1'):
+	return {
+	'__template__':'manage_blog.html',
+	'page_index':get_page_index(page)
+	}
+
+@get('/manage/comment')
+def manage_comment(*,page='1'):
+	return {
+		'__template__':'manage_comment.html',
+		'page_index':get_page_index(page)
+	}
+
+@get('/manage/user')
+def manage_user(*, page='1'):
+	return {
+		'__template__':'manage_user.html',
+		'page_index':get_page_index(page)
+	}
